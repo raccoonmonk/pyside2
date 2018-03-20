@@ -314,7 +314,16 @@ void CppGenerator::generateClass(QTextStream &s, GeneratorContext &classContext)
                                                            ->typeEntry());
         QString rawGetter = typeEntry->getter();
         s << "static const char * " SMART_POINTER_GETTER " = \"" << rawGetter << "\";";
-    }
+		// move methods from base class
+		if (auto * baseClass = metaClass->baseClass()) {
+			for (auto * metaFunction : baseClass->functions()) {
+				metaClass->addFunction(metaFunction);
+				metaFunction->setImplementingClass(metaClass);
+			}
+			baseClass->setFunctions({});
+			metaClass->setBaseClass(nullptr);
+		}
+	}
 
     // class inject-code native/beginning
     if (!metaClass->typeEntry()->codeSnips().isEmpty()) {

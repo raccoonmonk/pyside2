@@ -710,8 +710,23 @@ void AbstractMetaBuilderPrivate::traverseDom(const FileModelItem &dom)
         AbstractMetaFunction* metaFunc = traverseFunction(addedFunc);
         metaFunc->setFunctionType(AbstractMetaFunction::NormalFunction);
         m_globalFunctions << metaFunc;
-    }
-
+	}
+	// move metaClasses to smart pointers baseClass
+	for (auto * smartPtr : m_smartPointers) {
+		const auto & baseClassNames = smartPtr->baseClassNames();
+		if (Q_LIKELY(baseClassNames.isEmpty()))
+			continue;
+		// only singular inheritance
+		const QString baseClassName = stripTemplateArgs(baseClassNames.front());
+		auto findIter = std::find_if(std::begin(m_metaClasses), std::end(m_metaClasses),
+		                             [&baseClassName](AbstractMetaClass * metaClass) {
+		        return baseClassName == metaClass->qualifiedCppName();
+	    });
+		if (findIter != std::end(m_metaClasses)) {
+			smartPtr->setBaseClass(*findIter);
+			m_metaClasses.erase(findIter);
+		}
+	}
     std::puts("");
 }
 
@@ -798,7 +813,7 @@ AbstractMetaClass *AbstractMetaBuilderPrivate::traverseNamespace(const FileModel
             mjc->setEnclosingClass(metaClass);
             addAbstractMetaClass(mjc);
         }
-    }
+	}
 
     // Go through all typedefs to see if we have defined any
     // specific typedefs to be used as classes.
@@ -1354,20 +1369,20 @@ AbstractMetaClass* AbstractMetaBuilderPrivate::currentTraversedClass(ScopeModelI
 
     if (!metaClass)
         metaClass = AbstractMetaClass::findClass(m_smartPointers, fullClassName);
-    return metaClass;
+	return metaClass;
 }
 
 void AbstractMetaBuilderPrivate::traverseClassMembers(ClassModelItem item)
 {
     AbstractMetaClass* metaClass = currentTraversedClass(item);
-    if (!metaClass)
+	if (!metaClass)
         return;
 
     AbstractMetaClass* oldCurrentClass = m_currentClass;
     m_currentClass = metaClass;
 
     // Class members
-    traverseScopeMembers(item, metaClass);
+	traverseScopeMembers(item, metaClass);
 
     m_currentClass = oldCurrentClass;
 }
