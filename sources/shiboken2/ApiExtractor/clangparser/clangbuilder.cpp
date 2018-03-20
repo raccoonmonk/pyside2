@@ -553,7 +553,9 @@ bool Builder::visitLocation(const CXSourceLocation &location) const
     // Has been observed to be 0 for invalid locations
     if (const char *cFileName = clang_getCString(cxFileName)) {
         // Resolve OpenGL typedefs although the header is considered a system header.
-        const bool visitHeader = compareHeaderName(cFileName, "gl.h")
+		const bool visitHeader = compareHeaderName(cFileName, "gl.h")
+		        || compareHeaderName(cFileName, "shared_ptr.h")
+		        || compareHeaderName(cFileName, "shared_ptr_base.h")
 #if defined(Q_OS_LINUX) || defined(Q_OS_MACOS)
                 || cStringStartsWith("/usr/include/stdint.h", cFileName)
 #endif
