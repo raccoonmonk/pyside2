@@ -104,7 +104,7 @@ void HeaderGenerator::generateClass(QTextStream &s, GeneratorContext &classConte
     if (!classContext.forSmartPointer()) {
         wrapperName = HeaderGenerator::wrapperName(metaClass);
     } else {
-        wrapperName = HeaderGenerator::wrapperName(classContext.preciseType());
+        wrapperName = HeaderGenerator::removeConstRefFromSmartPointer(classContext.preciseType());
     }
     QString outerHeaderGuard = getFilteredCppSignatureString(wrapperName).toUpper();
     QString innerHeaderGuard;
@@ -563,7 +563,7 @@ void HeaderGenerator::writeSbkTypeFunction(QTextStream& s, const AbstractMetaCla
 
 void HeaderGenerator::writeSbkTypeFunction(QTextStream &s, const AbstractMetaType *metaType)
 {
-    s <<  "template<> inline PyTypeObject* SbkType< ::" << metaType->cppSignature() << " >() "
+    s <<  "template<> inline PyTypeObject* SbkType< ::" << removeConstRefFromSmartPointer(metaType) << " >() "
       <<  "{ return reinterpret_cast<PyTypeObject*>(" << cpythonTypeNameExt(metaType) << "); }\n";
 }
 

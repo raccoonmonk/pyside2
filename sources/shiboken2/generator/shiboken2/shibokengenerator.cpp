@@ -588,7 +588,7 @@ QString ShibokenGenerator::cpythonWrapperCPtr(const AbstractMetaType *metaType, 
 {
     if (!ShibokenGenerator::isWrapperType(metaType->typeEntry()))
         return QString();
-    return QLatin1String("reinterpret_cast< ::") + metaType->cppSignature()
+    return QLatin1String("reinterpret_cast< ::") + removeConstRefFromSmartPointer(metaType)
         + QLatin1String(" *>(Shiboken::Conversions::cppPointer(") + cpythonTypeNameExt(metaType)
         + QLatin1String(", reinterpret_cast<SbkObject *>(") + argName + QLatin1String(")))");
 }

@@ -1193,7 +1193,7 @@ void CppGenerator::writeConverterFunctions(QTextStream &s, const AbstractMetaCla
     if (!classContext.forSmartPointer())
         targetTypeName = metaClass->name();
     else
-        targetTypeName = classContext.preciseType()->name();
+                targetTypeName = classContext.preciseType()->name();
 
     sourceTypeName = targetTypeName + QLatin1String("_COPY");
 
@@ -1203,7 +1203,7 @@ void CppGenerator::writeConverterFunctions(QTextStream &s, const AbstractMetaCla
     if (!classContext.forSmartPointer())
         computedWrapperName = wrapperName(metaClass);
     else
-        computedWrapperName = wrapperName(classContext.preciseType());
+        computedWrapperName = removeConstRefFromSmartPointer(classContext.preciseType());
 
     c << INDENT << "return Shiboken::Object::newObject(&" << cpythonType << ", new ::" << computedWrapperName;
     c << "(*((" << typeName << "*)cppIn)), true, true);";
@@ -1215,7 +1215,7 @@ void CppGenerator::writeConverterFunctions(QTextStream &s, const AbstractMetaCla
     if (!classContext.forSmartPointer())
         sourceTypeName = metaClass->name();
     else
-        sourceTypeName = classContext.preciseType()->name();
+                sourceTypeName = classContext.preciseType()->name();
 
     targetTypeName = QStringLiteral("%1_COPY").arg(sourceTypeName);
     code.clear();
@@ -1362,7 +1362,7 @@ void CppGenerator::writeConverterRegister(QTextStream &s, const AbstractMetaClas
         cppSignature = metaClass->qualifiedCppName().split(QLatin1String("::"),
                                                                        QString::SkipEmptyParts);
     } else {
-        cppSignature = classContext.preciseType()->cppSignature().split(QLatin1String("::"),
+                cppSignature = classContext.preciseType()->cppSignature().split(QLatin1String("::"),
                                                                         QString::SkipEmptyParts);
     }
     while (!cppSignature.isEmpty()) {
@@ -1378,7 +1378,7 @@ void CppGenerator::writeConverterRegister(QTextStream &s, const AbstractMetaClas
     if (!classContext.forSmartPointer())
         qualifiedCppNameInvocation = metaClass->qualifiedCppName();
     else
-        qualifiedCppNameInvocation = classContext.preciseType()->cppSignature();
+        qualifiedCppNameInvocation = removeConstRefFromSmartPointer(classContext.preciseType());
 
     s << qualifiedCppNameInvocation << ").name());" << endl;
 
@@ -1487,7 +1487,7 @@ void CppGenerator::writeMethodWrapperPreamble(QTextStream &s, OverloadData &over
             if (!context.forSmartPointer())
                 qualifiedCppName = ownerClass->qualifiedCppName();
             else
-                qualifiedCppName = context.preciseType()->cppSignature();
+                                qualifiedCppName = context.preciseType()->cppSignature();
 
             s << qualifiedCppName << " >()))" << endl;
             Indentation indent(INDENT);
@@ -1499,7 +1499,7 @@ void CppGenerator::writeMethodWrapperPreamble(QTextStream &s, OverloadData &over
             s << (shouldGenerateCppWrapper(ownerClass) ? wrapperName(ownerClass)
                                                        : ownerClass->qualifiedCppName());
         } else {
-            s << context.preciseType()->cppSignature();
+                        s << context.preciseType()->cppSignature();
         }
         s << "* cptr = 0;" << endl;
 
@@ -1906,7 +1906,7 @@ void CppGenerator::writeCppSelfDefinition(QTextStream &s,
             ? wrapperName(metaClass)
             : (QLatin1String("::") + metaClass->qualifiedCppName());
     } else {
-        className = context.preciseType()->cppSignature();
+        className = removeConstRefFromSmartPointer(context.preciseType());
     }
 
     QString cppSelfAttribution;
@@ -3213,7 +3213,7 @@ void CppGenerator::writeMethodCall(QTextStream &s, const AbstractMetaFunction *f
             } else {
                 QString methodCallClassName;
                 if (context.forSmartPointer())
-                    methodCallClassName = context.preciseType()->cppSignature();
+                    methodCallClassName = removeConstRefFromSmartPointer(context.preciseType());
                 else if (func->ownerClass())
                     methodCallClassName = func->ownerClass()->qualifiedCppName();
 
@@ -4760,7 +4760,7 @@ QString CppGenerator::getInitFunctionName(GeneratorContext &context) const
         initFunctionName = context.metaClass()->qualifiedCppName();
         initFunctionName.replace(QLatin1String("::"), QLatin1String("_"));
     } else {
-        initFunctionName = getFilteredCppSignatureString(context.preciseType()->cppSignature());
+        initFunctionName = getFilteredCppSignatureString(removeConstRefFromSmartPointer(context.preciseType()));
     }
     return initFunctionName;
 }
@@ -4841,7 +4841,7 @@ void CppGenerator::writeClassRegister(QTextStream &s,
     if (!classContext.forSmartPointer())
         typeName = metaClass->name();
     else
-        typeName = classContext.preciseType()->cppSignature();
+                typeName = classContext.preciseType()->cppSignature();
 
     s << ", \"" << typeName << "\", \"";
 
@@ -4863,7 +4863,7 @@ void CppGenerator::writeClassRegister(QTextStream &s,
             if ((avoidProtectedHack() && metaClass->hasProtectedDestructor()) || classTypeEntry->isValue())
                 dtorClassName = wrapperName(metaClass);
             if (classContext.forSmartPointer())
-                dtorClassName = wrapperName(classContext.preciseType());
+                dtorClassName = removeConstRefFromSmartPointer(classContext.preciseType());
 
             s << ", &Shiboken::callCppDestructor< ::" << dtorClassName << " >";
         } else if (metaClass->baseClass() || hasEnclosingClass) {
@@ -4973,7 +4973,7 @@ void CppGenerator::writeInitQtMetaTypeFunctionBody(QTextStream &s, GeneratorCont
     if (!context.forSmartPointer())
         nameVariants << metaClass->name();
     else
-        nameVariants << context.preciseType()->cppSignature();
+                nameVariants << context.preciseType()->cppSignature();
 
     const AbstractMetaClass* enclosingClass = metaClass->enclosingClass();
     while (enclosingClass) {
@@ -4986,7 +4986,7 @@ void CppGenerator::writeInitQtMetaTypeFunctionBody(QTextStream &s, GeneratorCont
     if (!context.forSmartPointer())
         className = metaClass->qualifiedCppName();
     else
-        className = context.preciseType()->cppSignature();
+        className = removeConstRefFromSmartPointer(context.preciseType());
 
     if (!metaClass->isNamespace() && !metaClass->isAbstract())  {
         // Qt metatypes are registered only on their first use, so we do this now.

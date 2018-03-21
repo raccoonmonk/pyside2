@@ -396,6 +396,7 @@ protected:
     QVector<const AbstractMetaType*> instantiatedSmartPointers() const;
 
     static QString getSimplifiedContainerTypeName(const AbstractMetaType *type);
+    static QString removeConstRefFromSmartPointer(const AbstractMetaType *type);
     void addInstantiatedContainersAndSmartPointers(const AbstractMetaType *type,
                                                    const QString &context);
 

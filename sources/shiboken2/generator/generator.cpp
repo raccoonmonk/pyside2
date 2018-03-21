@@ -112,6 +112,10 @@ QString Generator::getSimplifiedContainerTypeName(const AbstractMetaType* type)
     return typeName;
 }
 
+QString Generator::removeConstRefFromSmartPointer(const AbstractMetaType * type) {
+    return getSimplifiedContainerTypeName(type);
+}
+
 void Generator::addInstantiatedContainersAndSmartPointers(const AbstractMetaType *type,
                                                           const QString &context)
 {
