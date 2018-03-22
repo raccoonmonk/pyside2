@@ -1246,6 +1246,8 @@ QString ShibokenGenerator::cpythonIsConvertibleFunction(const AbstractMetaType* 
     if (isWrapperType(metaType)) {
         if (isPointer(metaType) || isValueTypeWithCopyConstructorOnly(metaType))
             result += QLatin1String("isPythonToCppPointerConvertible");
+        else if (metaType->isSmartPointer())
+            result += QLatin1String("isPythonToCppValueConvertible");
         else if (metaType->referenceType() == LValueReference)
             result += QLatin1String("isPythonToCppReferenceConvertible");
         else
@@ -1297,10 +1299,10 @@ QString ShibokenGenerator::cpythonToPythonConversionFunction(const AbstractMetaT
 {
     if (isWrapperType(type)) {
         QString conversion;
-        if (type->referenceType() == LValueReference && !(type->isValue() && type->isConstant()) && !isPointer(type))
-            conversion = QLatin1String("reference");
-        else if (type->isValue() || type->isSmartPointer())
+        if (type->isValue() || type->isSmartPointer())
             conversion = QLatin1String("copy");
+        else if (type->referenceType() == LValueReference && !(type->isValue() && type->isConstant()) && !isPointer(type))
+            conversion = QLatin1String("reference");
         else
             conversion = QLatin1String("pointer");
         QString result = QLatin1String("Shiboken::Conversions::") + conversion

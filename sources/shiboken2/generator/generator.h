@@ -337,6 +337,8 @@ public:
     static bool isCString(const AbstractMetaType* type);
     /// Returns true if the type is a void pointer.
     static bool isVoidPointer(const AbstractMetaType* type);
+    /// Returns full name of the pointer without const and/or ref
+    static QString removeConstRefFromSmartPointer(const AbstractMetaType *type);
 
     // Returns the full name of the type.
     QString getFullTypeName(const TypeEntry* type) const;
@@ -396,7 +398,6 @@ protected:
     QVector<const AbstractMetaType*> instantiatedSmartPointers() const;
 
     static QString getSimplifiedContainerTypeName(const AbstractMetaType *type);
-    static QString removeConstRefFromSmartPointer(const AbstractMetaType *type);
     void addInstantiatedContainersAndSmartPointers(const AbstractMetaType *type,
                                                    const QString &context);
 

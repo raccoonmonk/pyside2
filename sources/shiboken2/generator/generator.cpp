@@ -849,7 +849,7 @@ QString getClassTargetFullName(const AbstractMetaEnum* metaEnum, bool includePac
 
 QString getClassTargetFullName(const AbstractMetaType *metaType, bool includePackageName)
 {
-    QString name = metaType->cppSignature();
+    QString name = Generator::removeConstRefFromSmartPointer(metaType);
     name.replace(QLatin1String("::"), QLatin1String("_"));
     name.replace(QLatin1Char('<'), QLatin1Char('_'));
     name.remove(QLatin1Char('>'));

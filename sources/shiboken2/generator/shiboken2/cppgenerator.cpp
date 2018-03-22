@@ -314,16 +314,16 @@ void CppGenerator::generateClass(QTextStream &s, GeneratorContext &classContext)
                                                            ->typeEntry());
         QString rawGetter = typeEntry->getter();
         s << "static const char * " SMART_POINTER_GETTER " = \"" << rawGetter << "\";";
-		// move methods from base class
-		if (auto * baseClass = metaClass->baseClass()) {
-			for (auto * metaFunction : baseClass->functions()) {
-				metaClass->addFunction(metaFunction);
-				metaFunction->setImplementingClass(metaClass);
-			}
-			baseClass->setFunctions({});
-			metaClass->setBaseClass(nullptr);
-		}
-	}
+                // move methods from base class
+                if (auto * baseClass = metaClass->baseClass()) {
+                        for (auto * metaFunction : baseClass->functions()) {
+                                metaClass->addFunction(metaFunction);
+                                metaFunction->setImplementingClass(metaClass);
+                        }
+                        baseClass->setFunctions({});
+                        metaClass->setBaseClass(nullptr);
+                }
+        }
 
     // class inject-code native/beginning
     if (!metaClass->typeEntry()->codeSnips().isEmpty()) {
@@ -1362,7 +1362,7 @@ void CppGenerator::writeConverterRegister(QTextStream &s, const AbstractMetaClas
         cppSignature = metaClass->qualifiedCppName().split(QLatin1String("::"),
                                                                        QString::SkipEmptyParts);
     } else {
-                cppSignature = classContext.preciseType()->cppSignature().split(QLatin1String("::"),
+        cppSignature = removeConstRefFromSmartPointer(classContext.preciseType()).split(QLatin1String("::"),
                                                                         QString::SkipEmptyParts);
     }
     while (!cppSignature.isEmpty()) {
@@ -2268,6 +2268,7 @@ void CppGenerator::writePythonToCppTypeConversion(QTextStream& s,
     bool mayHaveImplicitConversion = type->referenceType() == LValueReference
                                      && !isUserPrimitive(type)
                                      && !isCppPrimitive(type)
+        && !type->isSmartPointer()
                                      && isNotContainerEnumOrFlags
                                      && !(treatAsPointer || isPointerOrObjectType);
 
@@ -2299,7 +2300,7 @@ void CppGenerator::writePythonToCppTypeConversion(QTextStream& s,
         s << "* " << cppOut;
         if (!defaultValue.isEmpty())
             s << " = " << defaultValue;
-    } else if (type->referenceType() == LValueReference && !typeEntry->isPrimitive() && isNotContainerEnumOrFlags) {
+    } else if (type->referenceType() == LValueReference && !type->isSmartPointer() && !typeEntry->isPrimitive() && isNotContainerEnumOrFlags) {
         s << "* " << cppOut << " = &" << cppOutAux;
     } else {
         s << ' ' << cppOut;
@@ -3109,7 +3110,7 @@ void CppGenerator::writeMethodCall(QTextStream &s, const AbstractMetaFunction *f
                     int idx = arg->argumentIndex() - removedArgs;
                     bool deRef = isValueTypeWithCopyConstructorOnly(arg->type())
                                  || isObjectTypeUsedAsValueType(arg->type())
-                                 || (arg->type()->referenceType() == LValueReference && isWrapperType(arg->type()) && !isPointer(arg->type()));
+                                 || (arg->type()->referenceType() == LValueReference && isWrapperType(arg->type()) && !isPointer(arg->type()) && !arg->type()->isSmartPointer());
                     QString argName = hasConversionRule
                                       ? arg->name() + QLatin1String(CONV_RULE_OUT_VAR_SUFFIX)
                                       : QString::fromLatin1("%1" CPP_ARG "%2").arg(deRef ? QLatin1String("*") : QString()).arg(idx);
@@ -4841,7 +4842,7 @@ void CppGenerator::writeClassRegister(QTextStream &s,
     if (!classContext.forSmartPointer())
         typeName = metaClass->name();
     else
-                typeName = classContext.preciseType()->cppSignature();
+        typeName = removeConstRefFromSmartPointer(classContext.preciseType());
 
     s << ", \"" << typeName << "\", \"";
 
@@ -4849,7 +4850,7 @@ void CppGenerator::writeClassRegister(QTextStream &s,
     if (!classContext.forSmartPointer())
         s << metaClass->qualifiedCppName() << (isObjectType(classTypeEntry) ?  "*" : "");
     else
-        s << classContext.preciseType()->cppSignature();
+        s << removeConstRefFromSmartPointer(classContext.preciseType());
 
     s << "\"," << endl;
     {
@@ -4973,7 +4974,7 @@ void CppGenerator::writeInitQtMetaTypeFunctionBody(QTextStream &s, GeneratorCont
     if (!context.forSmartPointer())
         nameVariants << metaClass->name();
     else
-                nameVariants << context.preciseType()->cppSignature();
+        nameVariants << removeConstRefFromSmartPointer(context.preciseType());
 
     const AbstractMetaClass* enclosingClass = metaClass->enclosingClass();
     while (enclosingClass) {
