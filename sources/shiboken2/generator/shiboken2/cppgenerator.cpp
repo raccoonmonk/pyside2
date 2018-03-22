@@ -1193,7 +1193,7 @@ void CppGenerator::writeConverterFunctions(QTextStream &s, const AbstractMetaCla
     if (!classContext.forSmartPointer())
         targetTypeName = metaClass->name();
     else
-                targetTypeName = classContext.preciseType()->name();
+        targetTypeName = classContext.preciseType()->name();
 
     sourceTypeName = targetTypeName + QLatin1String("_COPY");
 
@@ -1204,6 +1204,10 @@ void CppGenerator::writeConverterFunctions(QTextStream &s, const AbstractMetaCla
         computedWrapperName = wrapperName(metaClass);
     else
         computedWrapperName = removeConstRefFromSmartPointer(classContext.preciseType());
+    if (classContext.forSmartPointer()) { // add nullptr to None conversion
+        c << INDENT << QStringLiteral("if (!*reinterpret_cast<const %1*>(cppIn))").arg(typeName) << endl;
+        c << INDENT << INDENT << "Py_RETURN_NONE;" << endl;
+    }
 
     c << INDENT << "return Shiboken::Object::newObject(&" << cpythonType << ", new ::" << computedWrapperName;
     c << "(*((" << typeName << "*)cppIn)), true, true);";
