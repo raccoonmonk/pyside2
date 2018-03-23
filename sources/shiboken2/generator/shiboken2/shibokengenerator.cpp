@@ -2704,6 +2704,8 @@ QString  ShibokenGenerator::getDefaultValue(const AbstractMetaFunction* func, co
 
 void ShibokenGenerator::writeMinimalConstructorExpression(QTextStream& s, const AbstractMetaType* type, const QString& defaultCtor)
 {
+    if (type->typeEntry()->isSmartPointer())
+      return;
     if (defaultCtor.isEmpty() && isCppPrimitive(type))
         return;
     QString ctor = defaultCtor.isEmpty() ? minimalConstructor(type) : defaultCtor;
