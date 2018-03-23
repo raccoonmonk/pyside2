@@ -431,7 +431,7 @@ void CppGenerator::generateClass(QTextStream &s, GeneratorContext &classContext)
                     // Replace the return type of the raw pointer getter method with the actual
                     // return type.
                     QString innerTypeName =
-                            classContext.preciseType()->getSmartPointerInnerType()->name();
+                            classContext.preciseType()->getSmartPointerInnerType()->typeEntry()->lookupName();
                     QString pointerToInnerTypeName = innerTypeName + QLatin1Char('*');
                     // @TODO: This possibly leaks, but there are a bunch of other places where this
                     // is done, so this will be fixed in bulk with all the other cases, because the
@@ -1366,8 +1366,13 @@ void CppGenerator::writeConverterRegister(QTextStream &s, const AbstractMetaClas
         cppSignature = metaClass->qualifiedCppName().split(QLatin1String("::"),
                                                                        QString::SkipEmptyParts);
     } else {
-        cppSignature = removeConstRefFromSmartPointer(classContext.preciseType()).split(QLatin1String("::"),
-                                                                        QString::SkipEmptyParts);
+        const QRegExp rx(QStringLiteral("[\\w]+(?:<\\s*[\\w:]+\\s*>)?"));
+        const QString & typeName = removeConstRefFromSmartPointer(classContext.preciseType());
+        int pos = 0;
+        while ((pos = rx.indexIn(typeName, pos)) != -1) {
+            cppSignature << rx.cap();
+            pos += rx.matchedLength();
+        }
     }
     while (!cppSignature.isEmpty()) {
         QString signature = cppSignature.join(QLatin1String("::"));
@@ -1491,7 +1496,7 @@ void CppGenerator::writeMethodWrapperPreamble(QTextStream &s, OverloadData &over
             if (!context.forSmartPointer())
                 qualifiedCppName = ownerClass->qualifiedCppName();
             else
-                                qualifiedCppName = context.preciseType()->cppSignature();
+                qualifiedCppName = context.preciseType()->cppSignature();
 
             s << qualifiedCppName << " >()))" << endl;
             Indentation indent(INDENT);
@@ -1503,7 +1508,7 @@ void CppGenerator::writeMethodWrapperPreamble(QTextStream &s, OverloadData &over
             s << (shouldGenerateCppWrapper(ownerClass) ? wrapperName(ownerClass)
                                                        : ownerClass->qualifiedCppName());
         } else {
-                        s << context.preciseType()->cppSignature();
+            s << context.preciseType()->cppSignature();
         }
         s << "* cptr = 0;" << endl;
 
