@@ -5224,9 +5224,16 @@ void CppGenerator::writeGetattroFunction(QTextStream& s, GeneratorContext &conte
             {
                 Indentation indent(INDENT);
                 s << INDENT << "PyTypeObject *tp = Py_TYPE(self);" << endl;
-                s << INDENT << "PyErr_Format(PyExc_AttributeError," << endl;
-                s << INDENT << "             \"'%.50s' object has no attribute '%.400s'\"," << endl;
-                s << INDENT << "             tp->tp_name, PyBytes_AS_STRING(name));" << endl;
+                s << INDENT << "if (PyUnicode_Check(name)) {" << endl;
+                {
+                    Indentation indent(INDENT);
+                    s << INDENT << "PyObject * utfString = PyUnicode_AsUTF8String(name);" << endl;
+                    s << INDENT << "PyErr_Format(PyExc_AttributeError," << endl;
+                    s << INDENT << "             \"'%.50s' object has no attribute '%.400s'\"," << endl;
+                    s << INDENT << "             tp->tp_name, PyBytes_AS_STRING(utfString));" << endl;
+                    s << INDENT << "Py_DecRef(utfString);" << endl;
+                }
+                s << INDENT << "}" << endl;
                 s << INDENT << "return NULL;" << endl;
             }
             s << INDENT << "} else {" << endl;
