@@ -710,23 +710,28 @@ void AbstractMetaBuilderPrivate::traverseDom(const FileModelItem &dom)
         AbstractMetaFunction* metaFunc = traverseFunction(addedFunc);
         metaFunc->setFunctionType(AbstractMetaFunction::NormalFunction);
         m_globalFunctions << metaFunc;
-	}
-	// move metaClasses to smart pointers baseClass
-	for (auto * smartPtr : m_smartPointers) {
-		const auto & baseClassNames = smartPtr->baseClassNames();
-		if (Q_LIKELY(baseClassNames.isEmpty()))
-			continue;
-		// only singular inheritance
-		const QString baseClassName = stripTemplateArgs(baseClassNames.front());
-		auto findIter = std::find_if(std::begin(m_metaClasses), std::end(m_metaClasses),
-		                             [&baseClassName](AbstractMetaClass * metaClass) {
-		        return baseClassName == metaClass->qualifiedCppName();
-	    });
-		if (findIter != std::end(m_metaClasses)) {
-			smartPtr->setBaseClass(*findIter);
-			m_metaClasses.erase(findIter);
-		}
-	}
+    }
+    // hangle smart pointers inheritance
+    for (auto * smartPtr : m_smartPointers) {
+        const auto & baseClassNames = smartPtr->baseClassNames();
+        if (Q_LIKELY(baseClassNames.isEmpty()))
+            continue;
+        // only singular inheritance
+        const QString baseClassName = stripTemplateArgs(baseClassNames.front());
+        auto findBaseIter = std::find_if(std::begin(m_metaClasses), std::end(m_metaClasses),
+                                     [&baseClassName](AbstractMetaClass * metaClass) {
+            return baseClassName == metaClass->qualifiedCppName();
+        });
+        if (findBaseIter != std::end(m_metaClasses)) {
+            // move methods from base class
+            for (auto * metaFunction : (*findBaseIter)->functions()) {
+                smartPtr->addFunction(metaFunction);
+                metaFunction->setImplementingClass(smartPtr);
+            }
+            (*findBaseIter)->setFunctions({});
+            m_metaClasses.erase(findBaseIter);
+        }
+    }
     std::puts("");
 }
 

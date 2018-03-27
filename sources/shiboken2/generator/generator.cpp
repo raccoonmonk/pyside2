@@ -576,9 +576,12 @@ QString Generator::getFullTypeNameWithoutModifiers(const AbstractMetaType* type)
 
 QString Generator::minimalConstructor(const AbstractMetaType* type) const
 {
-    if (!type || (type->referenceType() ==  LValueReference && Generator::isObjectType(type)))
+    if (!type || (type->referenceType() == LValueReference && Generator::isObjectType(type)))
         return QString();
 
+    if (type->isSmartPointer()) {
+        return QLatin1String("::") + removeConstRefFromSmartPointer(type) + QLatin1String("()");
+    }
     if (type->isContainer()) {
         QString ctor = type->cppSignature();
         if (ctor.endsWith(QLatin1Char('*')))

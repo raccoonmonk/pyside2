@@ -314,16 +314,7 @@ void CppGenerator::generateClass(QTextStream &s, GeneratorContext &classContext)
                                                            ->typeEntry());
         QString rawGetter = typeEntry->getter();
         s << "static const char * " SMART_POINTER_GETTER " = \"" << rawGetter << "\";";
-                // move methods from base class
-                if (auto * baseClass = metaClass->baseClass()) {
-                        for (auto * metaFunction : baseClass->functions()) {
-                                metaClass->addFunction(metaFunction);
-                                metaFunction->setImplementingClass(metaClass);
-                        }
-                        baseClass->setFunctions({});
-                        metaClass->setBaseClass(nullptr);
-                }
-        }
+     }
 
     // class inject-code native/beginning
     if (!metaClass->typeEntry()->codeSnips().isEmpty()) {
@@ -431,7 +422,7 @@ void CppGenerator::generateClass(QTextStream &s, GeneratorContext &classContext)
                     // Replace the return type of the raw pointer getter method with the actual
                     // return type.
                     QString innerTypeName =
-                            classContext.preciseType()->getSmartPointerInnerType()->typeEntry()->lookupName();
+                            classContext.preciseType()->getSmartPointerInnerType()->typeEntry()->qualifiedCppName();
                     QString pointerToInnerTypeName = innerTypeName + QLatin1Char('*');
                     // @TODO: This possibly leaks, but there are a bunch of other places where this
                     // is done, so this will be fixed in bulk with all the other cases, because the
@@ -673,6 +664,8 @@ QString CppGenerator::getVirtualFunctionReturnTypeName(const AbstractMetaFunctio
 
     if (func->type()->isPrimitive())
         return QLatin1Char('"') + func->type()->name() + QLatin1Char('"');
+    if (func->type()->isSmartPointer())
+        return QString::fromLatin1("Shiboken::SbkType< %1 >()->tp_name").arg(removeConstRefFromSmartPointer(func->type()));
 
     return QString::fromLatin1("Shiboken::SbkType< %1 >()->tp_name").arg(func->type()->typeEntry()->qualifiedCppName());
 }
