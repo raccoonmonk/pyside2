@@ -30,6 +30,7 @@
 
 #include <QtCore/QStack>
 #include <QtCore/QHash>
+#include <QtCore/QScopedPointer>
 #include <QtCore/QTextStream>
 #include <QXmlStreamReader>
 #include "generator.h"
@@ -48,6 +49,12 @@ class QtDocGenerator;
 class QtXmlToSphinx
 {
 public:
+    struct InlineImage
+    {
+        QString tag;
+        QString href;
+    };
+
     struct TableCell
     {
         short rowSpan;
@@ -101,8 +108,19 @@ public:
     }
 
 private:
-    QString resolveContextForMethod(const QString& methodName);
-    QString expandFunction(const QString& function);
+    struct LinkContext
+    {
+        LinkContext(const QString &ref, const QString &lType) : linkRef(ref), type(lType) {}
+
+        QString linkTag;
+        QString linkRef;
+        QString linkText;
+        QString linkTagEnding;
+        QString type;
+    };
+
+    QString resolveContextForMethod(const QString& methodName) const;
+    QString expandFunction(const QString& function) const;
     QString transform(const QString& doc);
 
     void handleHeadingTag(QXmlStreamReader& reader);
@@ -115,6 +133,7 @@ private:
     void handleDotsTag(QXmlStreamReader& reader);
     void handleLinkTag(QXmlStreamReader& reader);
     void handleImageTag(QXmlStreamReader& reader);
+    void handleInlineImageTag(QXmlStreamReader& reader);
     void handleListTag(QXmlStreamReader& reader);
     void handleTermTag(QXmlStreamReader& reader);
     void handleSuperScriptTag(QXmlStreamReader& reader);
@@ -133,6 +152,10 @@ private:
     void handleUselessTag(QXmlStreamReader& reader);
     void handleAnchorTag(QXmlStreamReader& reader);
 
+    LinkContext *handleLinkStart(const QString &type, const QString &ref) const;
+    void handleLinkText(LinkContext *linkContext, QString linktext) const;
+    void handleLinkEnd(LinkContext *linkContext);
+
     typedef void (QtXmlToSphinx::*TagHandler)(QXmlStreamReader&);
     QHash<QString, TagHandler> m_handlerMap;
     QStack<TagHandler> m_handlers;
@@ -143,6 +166,8 @@ private:
 
 
     Table m_currentTable;
+    QScopedPointer<LinkContext> m_linkContext; // for <link>
+    QScopedPointer<LinkContext> m_seeAlsoContext; // for <see-also>foo()</see-also>
     bool m_tableHasHeader;
     QString m_context;
     QtDocGenerator* m_generator;
@@ -150,6 +175,7 @@ private:
     bool m_insideItalic;
     QString m_lastTagName;
     QString m_opened_anchor;
+    QVector<InlineImage> m_inlineImages;
 
     QString readFromLocations(const QStringList &locations, const QString &path,
                               const QString &identifier, QString *errorMessage);
@@ -158,6 +184,7 @@ private:
     void pushOutputBuffer();
     QString popOutputBuffer();
     void writeTable(Table& table);
+    bool copyImage(const QString &href) const;
 };
 
 inline QTextStream& operator<<(QTextStream& s, const QtXmlToSphinx& xmlToSphinx)
@@ -183,14 +210,14 @@ public:
 
     QString docDataDir() const { return m_docDataDir; }
 
-    bool doSetup(const QMap<QString, QString>& args);
+    bool doSetup(const QMap<QString, QString>& args) override;
 
-    const char* name() const
+    const char* name() const override
     {
         return "QtDocGenerator";
     }
 
-    OptionDescriptions options() const;
+    OptionDescriptions options() const override;
 
     QStringList codeSnippetDirs() const
     {
@@ -198,13 +225,13 @@ public:
     }
 
 protected:
-    QString fileNamePrefix() const;
-    QString fileNameForContext(GeneratorContext &context) const;
-    void generateClass(QTextStream &s, GeneratorContext &classContext);
-    bool finishGeneration();
+    QString fileNameSuffix() const override;
+    QString fileNameForContext(GeneratorContext &context) const override;
+    void generateClass(QTextStream &s, GeneratorContext &classContext) override;
+    bool finishGeneration() override;
 
-    void writeFunctionArguments(QTextStream&, const AbstractMetaFunction*, Options) const {}
-    void writeArgumentNames(QTextStream&, const AbstractMetaFunction*, Options) const {}
+    void writeFunctionArguments(QTextStream&, const AbstractMetaFunction*, Options) const override {}
+    void writeArgumentNames(QTextStream&, const AbstractMetaFunction*, Options) const override {}
 
 private:
     void writeEnums(QTextStream& s, const AbstractMetaClass* cppClass);

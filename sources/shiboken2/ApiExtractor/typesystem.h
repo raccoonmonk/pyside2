@@ -40,6 +40,7 @@
 #include <QtCore/QStringList>
 #include <QtCore/QMap>
 #include <QtCore/QVector>
+#include <QtCore/QVersionNumber>
 
 //Used to identify the conversion rule to avoid break API
 #define TARGET_CONVERSION_RULE_FLAG "0"
@@ -415,7 +416,7 @@ struct AddedFunction
     };
 
     /// Creates a new AddedFunction with a signature and a return type.
-    explicit AddedFunction(QString signature, QString returnType, double vr);
+    explicit AddedFunction(QString signature, const QString &returnType);
     AddedFunction() = default;
 
     /// Returns the function name.
@@ -466,15 +467,10 @@ struct AddedFunction
         return m_isStatic;
     }
 
-    double version() const
-    {
-        return m_version;
-    }
 private:
     QString m_name;
     QVector<TypeInfo> m_arguments;
     TypeInfo m_returnType;
-    double m_version = 0;
     Access m_access = Protected;
     bool m_isConst = false;
     bool m_isStatic = false;
@@ -573,7 +569,7 @@ public:
     };
     Q_ENUM(CodeGeneration)
 
-    explicit TypeEntry(const QString &name, Type t, double vr);
+    explicit TypeEntry(const QString &name, Type t, const QVersionNumber &vr);
 
     virtual ~TypeEntry();
 
@@ -867,7 +863,7 @@ public:
         return !m_conversionRule.isEmpty();
     }
 
-    double version() const
+    QVersionNumber version() const
     {
         return m_version;
     }
@@ -903,13 +899,13 @@ private:
     QHash<QString, bool> m_includesUsed;
     QString m_conversionRule;
     bool m_stream = false;
-    double m_version;
+    QVersionNumber m_version;
 };
 
 class TypeSystemTypeEntry : public TypeEntry
 {
 public:
-    explicit TypeSystemTypeEntry(const QString &name, double vr);
+    explicit TypeSystemTypeEntry(const QString &name, const QVersionNumber &vr);
 };
 
 class VoidTypeEntry : public TypeEntry
@@ -927,7 +923,7 @@ public:
 class TemplateArgumentEntry : public TypeEntry
 {
 public:
-    explicit TemplateArgumentEntry(const QString &name, double vr);
+    explicit TemplateArgumentEntry(const QString &name, const QVersionNumber &vr);
 
     int ordinal() const
     {
@@ -945,7 +941,7 @@ private:
 class ArrayTypeEntry : public TypeEntry
 {
 public:
-    explicit ArrayTypeEntry(const TypeEntry *nested_type, double vr);
+    explicit ArrayTypeEntry(const TypeEntry *nested_type, const QVersionNumber &vr);
 
     void setNestedTypeEntry(TypeEntry *nested)
     {
@@ -967,7 +963,7 @@ private:
 class PrimitiveTypeEntry : public TypeEntry
 {
 public:
-    explicit PrimitiveTypeEntry(const QString &name, double vr);
+    explicit PrimitiveTypeEntry(const QString &name, const QVersionNumber &vr);
 
     QString targetLangName() const override;
     void setTargetLangName(const QString &targetLangName)
@@ -1042,22 +1038,17 @@ private:
     PrimitiveTypeEntry* m_referencedTypeEntry = nullptr;
 };
 
-struct EnumValueRedirection
-{
-    EnumValueRedirection() {}
-    EnumValueRedirection(const QString &rej, const QString &us)
-            : rejected(rej),
-            used(us)
-    {
-    }
-    QString rejected;
-    QString used;
-};
-
 class EnumTypeEntry : public TypeEntry
 {
 public:
-    explicit EnumTypeEntry(const QString &nspace, const QString &enumName, double vr);
+    enum EnumKind {
+        CEnum,         // Standard C: enum Foo { value1, value2 }
+        AnonymousEnum, //             enum { value1, value2 }
+        EnumClass      // C++ 11    : enum class Foo { value1, value2 }
+    };
+
+    explicit EnumTypeEntry(const QString &nspace, const QString &enumName,
+                           const QVersionNumber &vr);
 
     QString targetLangPackage() const override;
     void setTargetLangPackage(const QString &package);
@@ -1076,6 +1067,9 @@ public:
     {
         m_qualifier = q;
     }
+
+    EnumKind enumKind() const { return m_enumKind; }
+    void setEnumKind(EnumKind kind) { m_enumKind = kind; }
 
     bool preferredConversion() const override;
 
@@ -1120,7 +1114,7 @@ public:
         m_extensible = is;
     }
 
-    bool isEnumValueRejected(const QString &name)
+    bool isEnumValueRejected(const QString &name) const
     {
         return m_rejectedEnums.contains(name);
     }
@@ -1133,9 +1127,6 @@ public:
         return m_rejectedEnums;
     }
 
-    void addEnumValueRedirection(const QString &rejected, const QString &usedValue);
-    QString enumValueRedirection(const QString &value) const;
-
     bool forceInteger() const
     {
         return m_forceInteger;
@@ -1145,14 +1136,7 @@ public:
         m_forceInteger = force;
     }
 
-    bool isAnonymous() const
-    {
-        return m_anonymous;
-    }
-    void setAnonymous(bool anonymous)
-    {
-        m_anonymous = anonymous;
-    }
+    bool isAnonymous() const { return m_enumKind == AnonymousEnum; }
 
 private:
     QString m_packageName;
@@ -1163,19 +1147,21 @@ private:
     QString m_upperBound;
 
     QStringList m_rejectedEnums;
-    QVector<EnumValueRedirection> m_enumRedirections;
 
     FlagsTypeEntry *m_flags = nullptr;
 
+    EnumKind m_enumKind = CEnum;
+
     bool m_extensible = false;
     bool m_forceInteger = false;
-    bool m_anonymous = false;
 };
 
+// EnumValueTypeEntry is used for resolving integer type templates
+// like array<EnumValue>.
 class EnumValueTypeEntry : public TypeEntry
 {
 public:
-    explicit EnumValueTypeEntry(const QString& name, const QString& value, const EnumTypeEntry* enclosingEnum, double vr);
+    explicit EnumValueTypeEntry(const QString& name, const QString& value, const EnumTypeEntry* enclosingEnum, const QVersionNumber &vr);
 
     QString value() const { return m_value; }
     const EnumTypeEntry* enclosingEnum() const { return m_enclosingEnum; }
@@ -1187,7 +1173,7 @@ private:
 class FlagsTypeEntry : public TypeEntry
 {
 public:
-    explicit FlagsTypeEntry(const QString &name, double vr);
+    explicit FlagsTypeEntry(const QString &name, const QVersionNumber &vr);
 
     QString qualifiedTargetLangName() const override;
     QString targetLangName() const override;
@@ -1251,7 +1237,7 @@ public:
         Unknown
     };
 
-    explicit ComplexTypeEntry(const QString &name, Type t, double vr);
+    explicit ComplexTypeEntry(const QString &name, Type t, const QVersionNumber &vr);
 
     bool isComplex() const override;
 
@@ -1469,7 +1455,7 @@ public:
     };
     Q_ENUM(Type)
 
-    explicit ContainerTypeEntry(const QString &name, Type type, double vr);
+    explicit ContainerTypeEntry(const QString &name, Type type, const QVersionNumber &vr);
 
     Type type() const
     {
@@ -1512,7 +1498,7 @@ public:
                                    const QString &getterName,
                                    const QString &smartPointerType,
                                    const QString &refCountMethodName,
-                                   double vr);
+                                   const QVersionNumber &vr);
 
     QString getter() const
     {
@@ -1533,28 +1519,28 @@ private:
 class NamespaceTypeEntry : public ComplexTypeEntry
 {
 public:
-    explicit NamespaceTypeEntry(const QString &name, double vr);
+    explicit NamespaceTypeEntry(const QString &name, const QVersionNumber &vr);
 };
 
 
 class ValueTypeEntry : public ComplexTypeEntry
 {
 public:
-    explicit ValueTypeEntry(const QString &name, double vr);
+    explicit ValueTypeEntry(const QString &name, const QVersionNumber &vr);
 
     bool isValue() const override;
 
     bool isNativeIdBased() const override;
 
 protected:
-    explicit ValueTypeEntry(const QString &name, Type t, double vr);
+    explicit ValueTypeEntry(const QString &name, Type t, const QVersionNumber &vr);
 };
 
 
 class StringTypeEntry : public ValueTypeEntry
 {
 public:
-    explicit StringTypeEntry(const QString &name, double vr);
+    explicit StringTypeEntry(const QString &name, const QVersionNumber &vr);
 
     QString targetLangApiName() const override;
     QString targetLangName() const override;
@@ -1566,7 +1552,7 @@ public:
 class CharTypeEntry : public ValueTypeEntry
 {
 public:
-    explicit CharTypeEntry(const QString &name, double vr);
+    explicit CharTypeEntry(const QString &name, const QVersionNumber &vr);
 
     QString targetLangApiName() const override;
     QString targetLangName() const override;
@@ -1578,7 +1564,7 @@ public:
 class VariantTypeEntry: public ValueTypeEntry
 {
 public:
-    explicit VariantTypeEntry(const QString &name, double vr);
+    explicit VariantTypeEntry(const QString &name, const QVersionNumber &vr);
 
     QString targetLangApiName() const override;
     QString targetLangName() const override;
@@ -1591,7 +1577,7 @@ public:
 class InterfaceTypeEntry : public ComplexTypeEntry
 {
 public:
-    explicit InterfaceTypeEntry(const QString &name, double vr);
+    explicit InterfaceTypeEntry(const QString &name, const QVersionNumber &vr);
 
     static QString interfaceName(const QString &name)
     {
@@ -1618,7 +1604,8 @@ private:
 class FunctionTypeEntry : public TypeEntry
 {
 public:
-    explicit FunctionTypeEntry(const QString& name, const QString& signature, double vr);
+    explicit FunctionTypeEntry(const QString& name, const QString& signature,
+                               const QVersionNumber &vr);
     void addSignature(const QString& signature)
     {
         m_signatures << signature;
@@ -1640,7 +1627,7 @@ private:
 class ObjectTypeEntry : public ComplexTypeEntry
 {
 public:
-    explicit ObjectTypeEntry(const QString &name, double vr);
+    explicit ObjectTypeEntry(const QString &name, const QVersionNumber &vr);
 
     InterfaceTypeEntry *designatedInterface() const override;
     void setDesignatedInterface(InterfaceTypeEntry *entry)

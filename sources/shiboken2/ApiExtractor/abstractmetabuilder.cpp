@@ -177,7 +177,7 @@ static QString msgNoFunctionForModification(const QString &signature, const QStr
             if (f)
                 str << ", ";
             str << allFunctions.at(f)->minimalSignature();
-       }
+        }
     } else {
         str << " Possible candidates: " << possibleSignatures.join(QLatin1String(", "));
     }
@@ -197,6 +197,10 @@ void AbstractMetaBuilderPrivate::checkFunctionModifications()
             continue;
 
         const ComplexTypeEntry* centry = static_cast<const ComplexTypeEntry*>(entry);
+
+        if (!(centry->codeGeneration() & TypeEntry::GenerateTargetLang))
+            continue;
+
         FunctionModificationList modifications = centry->functionModifications();
 
         for (const FunctionModification &modification : qAsConst(modifications)) {
@@ -585,6 +589,7 @@ void AbstractMetaBuilderPrivate::traverseDom(const FileModelItem &dom)
                 && !entry->isContainer()
                 && !entry->isCustom()
                 && !entry->isVariant()
+                && (entry->generateCode() & TypeEntry::GenerateTargetLang)
                 && !AbstractMetaClass::findClass(m_metaClasses, entry->qualifiedCppName())) {
                 qCWarning(lcShiboken).noquote().nospace()
                     << QStringLiteral("type '%1' is specified in typesystem, but not defined. This could potentially lead to compilation errors.")
@@ -606,7 +611,7 @@ void AbstractMetaBuilderPrivate::traverseDom(const FileModelItem &dom)
                                               .arg(signature);
                     }
                 }
-            } else if (entry->isEnum()) {
+            } else if (entry->isEnum() && (entry->generateCode() & TypeEntry::GenerateTargetLang)) {
                 const QString name = ((EnumTypeEntry*) entry)->targetLangQualifier();
                 AbstractMetaClass *cls = AbstractMetaClass::findClass(m_metaClasses, name);
 
@@ -1068,7 +1073,7 @@ AbstractMetaEnum *AbstractMetaBuilderPrivate::traverseEnum(EnumModelItem enumIte
         QString nspace;
         if (names.size() > 1)
             nspace = QStringList(names.mid(0, names.size() - 1)).join(colonColon());
-        typeEntry = new EnumTypeEntry(nspace, enumName, 0);
+        typeEntry = new EnumTypeEntry(nspace, enumName, QVersionNumber(0, 0));
         TypeDatabase::instance()->addType(typeEntry);
     } else if (!enumItem->isAnonymous()) {
         typeEntry = TypeDatabase::instance()->findType(qualifiedName);
@@ -1099,10 +1104,13 @@ AbstractMetaEnum *AbstractMetaBuilderPrivate::traverseEnum(EnumModelItem enumIte
         return 0;
     }
 
-    if (!typeEntry || !typeEntry->isEnum()) {
-        qCWarning(lcShiboken).noquote().nospace()
-            << QStringLiteral("enum '%1' does not have a type entry or is not an enum")
+    if ((!typeEntry || !typeEntry->isEnum())) {
+        if (!m_currentClass ||
+                (m_currentClass->typeEntry()->codeGeneration() & TypeEntry::GenerateTargetLang)) {
+            qCWarning(lcShiboken).noquote().nospace()
+                << QStringLiteral("enum '%1' does not have a type entry or is not an enum")
                               .arg(qualifiedName);
+        }
         m_rejectedEnums.insert(qualifiedName, AbstractMetaBuilder::NotInTypeSystem);
         return 0;
     }
@@ -1454,9 +1462,11 @@ AbstractMetaField *AbstractMetaBuilderPrivate::traverseField(VariableModelItem f
 
     if (!metaType || !ok) {
         const QString type = TypeInfo::resolveType(fieldType, currentScope()).qualifiedName().join(colonColon());
-        qCWarning(lcShiboken).noquote().nospace()
-             << QStringLiteral("skipping field '%1::%2' with unmatched type '%3'")
-                               .arg(m_currentClass->name(), fieldName, type);
+        if (m_currentClass->typeEntry()->codeGeneration() & TypeEntry::GenerateTargetLang) {
+            qCWarning(lcShiboken).noquote().nospace()
+                 << QStringLiteral("skipping field '%1::%2' with unmatched type '%3'")
+                                   .arg(m_currentClass->name(), fieldName, type);
+        }
         delete metaField;
         return 0;
     }
@@ -1947,7 +1957,7 @@ AbstractMetaFunction* AbstractMetaBuilderPrivate::traverseFunction(const AddedFu
     metaFunction->setUserAdded(true);
     AbstractMetaAttributes::Attribute isStatic = addedFunc.isStatic() ? AbstractMetaFunction::Static : AbstractMetaFunction::None;
     metaFunction->setAttributes(metaFunction->attributes() | AbstractMetaAttributes::FinalInTargetLang | isStatic);
-    metaFunction->setType(translateType(addedFunc.version(), addedFunc.returnType()));
+    metaFunction->setType(translateType(addedFunc.returnType()));
 
 
     QVector<AddedFunction::TypeInfo> args = addedFunc.arguments();
@@ -1956,7 +1966,7 @@ AbstractMetaFunction* AbstractMetaBuilderPrivate::traverseFunction(const AddedFu
     for (int i = 0; i < args.count(); ++i) {
         AddedFunction::TypeInfo& typeInfo = args[i];
         AbstractMetaArgument *metaArg = new AbstractMetaArgument;
-        AbstractMetaType* type = translateType(addedFunc.version(), typeInfo);
+        AbstractMetaType *type = translateType(typeInfo);
         decideUsagePattern(type);
         metaArg->setType(type);
         metaArg->setArgumentIndex(i);
@@ -2414,8 +2424,7 @@ AbstractMetaFunction *AbstractMetaBuilderPrivate::traverseFunction(FunctionModel
     return metaFunction;
 }
 
-AbstractMetaType *AbstractMetaBuilderPrivate::translateType(double vr,
-                                                            const AddedFunction::TypeInfo &typeInfo)
+AbstractMetaType *AbstractMetaBuilderPrivate::translateType(const AddedFunction::TypeInfo &typeInfo)
 {
     Q_ASSERT(!typeInfo.name.isEmpty());
     TypeDatabase* typeDb = TypeDatabase::instance();
@@ -2472,7 +2481,7 @@ AbstractMetaType *AbstractMetaBuilderPrivate::translateType(double vr,
     metaType->setConstant(typeInfo.isConstant);
     if (isTemplate) {
         for (const QString& templateArg : qAsConst(templateArgs)) {
-            AbstractMetaType* metaArgType = translateType(vr, AddedFunction::TypeInfo::fromSignature(templateArg));
+            AbstractMetaType *metaArgType = translateType(AddedFunction::TypeInfo::fromSignature(templateArg));
             metaType->addInstantiation(metaArgType);
         }
         metaType->setTypeUsagePattern(AbstractMetaType::ContainerPattern);
@@ -2750,12 +2759,9 @@ int AbstractMetaBuilderPrivate::findOutValueFromString(const QString &stringValu
     }
 
     for (AbstractMetaEnum *metaEnum : qAsConst(m_globalEnums)) {
-        const AbstractMetaEnumValueList &values = metaEnum->values();
-        for (const AbstractMetaEnumValue *ev : values) {
-            if (ev->name() == stringValue) {
-                ok = true;
-                return ev->value();
-            }
+        if (const AbstractMetaEnumValue *ev = metaEnum->findEnumValue(stringValue)) {
+            ok = true;
+            return ev->value();
         }
     }
 

@@ -7,11 +7,11 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/global.h.in"
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/__init__.py.in"
                "${CMAKE_CURRENT_BINARY_DIR}/__init__.py" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/_built_modules.py.in"
-              "${CMAKE_CURRENT_BINARY_DIR}/_built_modules.py" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/_config.py.in"
+              "${CMAKE_CURRENT_BINARY_DIR}/_config.py" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/_utils.py.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/_utils.py" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../pyside_version.py"
+               "${CMAKE_CURRENT_BINARY_DIR}/_git_pyside_version.py" @ONLY)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/support/__init__.py"
                "${CMAKE_CURRENT_BINARY_DIR}/support/__init__.py" COPYONLY)
@@ -70,9 +70,9 @@ endforeach()
 # install
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/__init__.py"
         DESTINATION "${PYTHON_SITE_PACKAGES}/${BINDING_NAME}${pyside2_SUFFIX}")
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/_built_modules.py"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/_config.py"
         DESTINATION "${PYTHON_SITE_PACKAGES}/${BINDING_NAME}${pyside2_SUFFIX}")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/_utils.py
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/_git_pyside_version.py"
         DESTINATION "${PYTHON_SITE_PACKAGES}/${BINDING_NAME}${pyside2_SUFFIX}")
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/typesystem_templates.xml
         DESTINATION share/PySide2${pyside_SUFFIX}/typesystems)

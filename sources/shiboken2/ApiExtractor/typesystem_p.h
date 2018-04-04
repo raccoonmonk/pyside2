@@ -145,7 +145,7 @@ private:
     bool handleSmartPointerEntry(StackElement *element,
                                  QHash<QString, QString> &attributes,
                                  const QString &name,
-                                 double since);
+                                 const QVersionNumber &since);
     bool endElement(const QStringRef& localName);
     template <class String> // QString/QStringRef
     bool characters(const String &ch);
@@ -153,9 +153,9 @@ private:
                               QHash<QString, QString> *acceptedAttributes);
 
     bool importFileElement(const QXmlStreamAttributes &atts);
-    bool convertBoolean(const QString &, const QString &, bool);
     void addFlags(const QString &name, QString flagName,
-                  const QHash<QString, QString> &attributes, double since);
+                  const QHash<QString, QString> &attributes,
+                  const QVersionNumber &since);
 
     TypeDatabase* m_database;
     StackElement* m_current;
